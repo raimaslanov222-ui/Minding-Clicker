@@ -1,121 +1,116 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Адаптация под размер экрана телефона
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const gravity = 0.6;
-const jumpForce = -10;
-const speed = 5;
+const gravity = 0.8;
+const jumpForce = -12;
+const speed = 7;
+const groundY = canvas.height - 100;
 
 let player = {
-    x: 50,
-    y: canvas.height - 100,
-    w: 40,
-    h: 40,
-    dy: 0,
-    grounded: false,
-    rotation: 0
+    x: 80, y: groundY - 40, w: 40, h: 40,
+    dy: 0, grounded: false, rotation: 0
 };
 
 let obstacles = [];
-let score = 0;
-let isGameOver = false;
+let isPressing = false; // Для зажима
+let frame = 0;
 
-// Создание препятствия (треугольника)
-function spawnObstacle() {
-    obstacles.push({
-        x: canvas.width,
-        y: canvas.height - 50,
-        w: 40,
-        h: 50
-    });
-}
+// Управление для телефона (зажим)
+window.addEventListener('touchstart', () => isPressing = true);
+window.addEventListener('touchend', () => isPressing = false);
 
-// Управление тапом
-window.addEventListener('touchstart', () => {
-    if (player.grounded) {
-        player.dy = jumpForce;
-        player.grounded = false;
+function spawnLevel() {
+    // Генерируем препятствие каждые 90 кадров (паркур)
+    if (frame % 90 === 0) {
+        let type = Math.random() > 0.5 ? 'spike' : 'block';
+        obstacles.push({
+            x: canvas.width,
+            y: type === 'spike' ? groundY - 40 : groundY - 80,
+            w: 40, h: 40, type: type
+        });
     }
-    if (isGameOver) resetGame();
-});
-
-function resetGame() {
-    player.y = canvas.height - 100;
-    player.dy = 0;
-    obstacles = [];
-    score = 0;
-    isGameOver = false;
-    requestAnimationFrame(update);
 }
 
 function update() {
-    if (isGameOver) return;
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    frame++;
 
-    // Логика игрока
+    // Логика зажима (авто-прыжок)
+    if (isPressing && player.grounded) {
+        player.dy = jumpForce;
+        player.grounded = false;
+        // Звук можно добавить тут: new Audio('jump.mp3').play();
+    }
+
     player.dy += gravity;
     player.y += player.dy;
 
     // Пол
-    if (player.y + player.h > canvas.height - 50) {
-        player.y = canvas.height - 50 - player.h;
+    if (player.y + player.h > groundY) {
+        player.y = groundY - player.h;
         player.dy = 0;
         player.grounded = true;
-        player.rotation = 0; // Сброс вращения на земле
+        player.rotation = Math.round(player.rotation / (Math.PI / 2)) * (Math.PI / 2);
     } else {
-        player.rotation += 0.15; // Вращение в прыжке
+        player.rotation += 0.15;
     }
 
-    // Отрисовка пола
-    ctx.fillStyle = "#333";
-    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    // РИСУЕМ ПОЛ (с неоновой линией)
+    ctx.strokeStyle = "#00ffff";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(canvas.width, groundY);
+    ctx.stroke();
 
-    // Отрисовка игрока (куб)
+    // РИСУЕМ КУБИК (с обводкой и глазами)
     ctx.save();
-    ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
+    ctx.translate(player.x + player.w/2, player.y + player.h/2);
     ctx.rotate(player.rotation);
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "#00ffcc";
     ctx.fillStyle = "#00ffcc";
-    ctx.fillRect(-player.w / 2, -player.h / 2, player.w, player.h);
+    ctx.fillRect(-player.w/2, -player.h/2, player.w, player.h);
     ctx.strokeStyle = "white";
-    ctx.strokeRect(-player.w / 2, -player.h / 2, player.w, player.h);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-player.w/2, -player.h/2, player.w, player.h);
+    // Глаза
+    ctx.fillStyle = "black";
+    ctx.fillRect(5, -10, 8, 8);
+    ctx.fillRect(5, 2, 8, 8);
     ctx.restore();
 
-    // Препятствия
-    if (Math.random() < 0.01) spawnObstacle();
-
-    obstacles.forEach((obs, index) => {
+    // ПРЕПЯТСТВИЯ
+    spawnLevel();
+    obstacles.forEach((obs, i) => {
         obs.x -= speed;
-
-        // Отрисовка шипа (треугольник)
-        ctx.fillStyle = "#ff4444";
-        ctx.beginPath();
-        ctx.moveTo(obs.x, obs.y + obs.h);
-        ctx.lineTo(obs.x + obs.w / 2, obs.y);
-        ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
-        ctx.fill();
-
-        // Проверка столкновения
-        if (
-            player.x < obs.x + obs.w &&
-            player.x + player.w > obs.x &&
-            player.y < obs.y + obs.h &&
-            player.y + player.h > obs.y
-        ) {
-            isGameOver = true;
-            alert("Игра окончена! Счет: " + Math.floor(score));
+        
+        ctx.shadowBlur = 0;
+        if (obs.type === 'spike') {
+            ctx.fillStyle = "#ff0055";
+            ctx.beginPath();
+            ctx.moveTo(obs.x, groundY);
+            ctx.lineTo(obs.x + obs.w/2, obs.y);
+            ctx.lineTo(obs.x + obs.w, groundY);
+            ctx.fill();
+        } else {
+            ctx.fillStyle = "#333";
+            ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+            ctx.strokeStyle = "#555";
+            ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
         }
 
-        if (obs.x + obs.w < 0) obstacles.splice(index, 1);
-    });
+        // Коллизия (смерть)
+        if (player.x < obs.x + obs.w - 5 && player.x + player.w > obs.x + 5 &&
+            player.y < obs.y + obs.h - 5 && player.y + player.h > obs.y + 5) {
+            location.reload(); // Рестарт при смерти
+        }
 
-    score += 0.1;
-    ctx.fillStyle = "white";
-    ctx.font = "20px Arial";
-    ctx.fillText(`Score: ${Math.floor(score)}`, 20, 40);
+        if (obs.x < -50) obstacles.splice(i, 1);
+    });
 
     requestAnimationFrame(update);
 }
