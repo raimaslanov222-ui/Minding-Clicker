@@ -3,11 +3,451 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Dash</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Minding Checkers Online</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --accent: #bb86fc;
+            --white-cell: #ebecd0;
+            --black-cell: #779556;
+            --white-piece: #ffffff;
+            --black-piece: #262626;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: white;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Интерфейс */
+        .header {
+            width: 100%;
+            padding: 15px;
+            background: var(--panel);
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+        }
+
+        #game-info {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        /* Доска */
+        #board-wrapper {
+            position: relative;
+            width: 95vw;
+            max-width: 450px;
+            aspect-ratio: 1/1;
+            border: 8px solid #333;
+            border-radius: 4px;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            width: 100%;
+            height: 100%;
+        }
+
+        .cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .cell.white { background-color: var(--white-cell); }
+        .cell.black { background-color: var(--black-cell); }
+
+        /* Шашки */
+        .piece {
+            width: 85%;
+            height: 85%;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 5;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 4px rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .piece.white-p { background: radial-gradient(circle at 30% 30%, #fff, #ccc); border: 2px solid #999; }
+        .piece.black-p { background: radial-gradient(circle at 30% 30%, #444, #111); border: 2px solid #000; }
+        
+        .piece.king::after { content: '👑'; font-size: 24px; }
+        .piece.selected { transform: scale(1.15); box-shadow: 0 0 15px var(--accent); }
+
+        /* Подсказки */
+        .move-hint {
+            position: absolute;
+            width: 30%;
+            height: 30%;
+            background: rgba(187, 134, 252, 0.6);
+            border-radius: 50%;
+            z-index: 10;
+        }
+
+        /* Меню управления */
+        .controls {
+            margin: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            max-width: 500px;
+        }
+
+        button {
+            background: var(--panel);
+            color: white;
+            border: 1px solid var(--accent);
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        button:hover { background: var(--accent); color: black; }
+
+        .online-box {
+            background: var(--panel);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        input {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background: #222;
+            color: white;
+            margin-bottom: 10px;
+            width: 150px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    <script src="script.js"></script>
+
+    <div class="header">
+        <div id="game-info">Загрузка...</div>
+        <div id="room-display" style="font-size: 0.8rem; margin-top: 5px;"></div>
+    </div>
+
+    <div id="board-wrapper">
+        <div id="board"></div>
+    </div>
+
+    <div class="controls">
+        <button onclick="setMode('local')">👥 2 игрока</button>
+        <button onclick="setMode('ai')">🤖 Бот (Сложно)</button>
+        <button onclick="showOnlineMenu()">🌐 Онлайн</button>
+        <button onclick="resetGame()">🔄 Сброс</button>
+    </div>
+
+    <div id="online-menu" class="online-box">
+        <input type="text" id="room-id-input" placeholder="ID комнаты">
+        <br>
+        <button onclick="createRoom()">Создать комнату</button>
+        <button onclick="joinRoom()">Войти по ID</button>
+    </div>
+
+    <script>
+        /* --- КОНФИГУРАЦИЯ FIREBASE --- */
+        const firebaseConfig = {
+            apiKey: "AIzaSyCFJQ4OKKStxVW7gUj1lS4KHwxGc1_QIwg",
+            authDomain: "mymobilegame-b5e68.firebaseapp.com",
+            projectId: "mymobilegame-b5e68",
+            storageBucket: "mymobilegame-b5e68.firebasestorage.app",
+            messagingSenderId: "137334852741",
+            appId: "1:137334852741:web:7f1be97afce766c011edec",
+            measurementId: "G-YT137QSBFK",
+            databaseURL: "https://mymobilegame-b5e68-default-rtdb.firebaseio.com"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        /* --- ПЕРЕМЕННЫЕ ИГРЫ --- */
+        let board = [];
+        let turn = 'white';
+        let selected = null;
+        let hints = [];
+        let mode = 'local'; // local, ai, online
+        let myColor = 'white';
+        let roomId = null;
+        let multiJump = false;
+
+        const boardEl = document.getElementById('board');
+        const infoEl = document.getElementById('game-info');
+
+        /* --- ИНИЦИАЛИЗАЦИЯ --- */
+        function initBoard() {
+            board = Array(8).fill(null).map(() => Array(8).fill(null));
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if ((r + c) % 2 !== 0) {
+                        if (r < 3) board[r][c] = { color: 'black', king: false };
+                        if (r > 4) board[r][c] = { color: 'white', king: false };
+                    }
+                }
+            }
+            render();
+        }
+
+        function render() {
+            boardEl.innerHTML = '';
+            const mustHit = getMustHitMoves(turn);
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = `cell ${(r + c) % 2 === 0 ? 'white' : 'black'}`;
+                    
+                    const p = board[r][c];
+                    if (p) {
+                        const piece = document.createElement('div');
+                        piece.className = `piece ${p.color}-p ${p.king ? 'king' : ''}`;
+                        if (selected && selected.r === r && selected.c === c) piece.classList.add('selected');
+                        piece.onclick = () => handleSelect(r, c);
+                        cell.appendChild(piece);
+                    }
+
+                    const hint = hints.find(h => h.toR === r && h.toC === c);
+                    if (hint) {
+                        const hEl = document.createElement('div');
+                        hEl.className = 'move-hint';
+                        hEl.onclick = () => executeMove(hint);
+                        cell.appendChild(hEl);
+                    }
+                    boardEl.appendChild(cell);
+                }
+            }
+            infoEl.innerText = turn === 'white' ? "Ход Белых" : "Ход Черных";
+            if (mode === 'online') {
+                document.getElementById('room-display').innerText = `Комната: ${roomId} | Вы: ${myColor === 'white' ? 'Белые' : 'Черные'}`;
+            }
+        }
+
+        /* --- ЛОГИКА ХОДОВ --- */
+        function handleSelect(r, c) {
+            if (mode === 'online' && turn !== myColor) return;
+            if (mode === 'ai' && turn === 'black') return;
+
+            const p = board[r][c];
+            if (!p || p.color !== turn) return;
+            if (multiJump && (selected.r !== r || selected.c !== c)) return;
+
+            const mustHit = getMustHitMoves(turn);
+            if (mustHit.length > 0) {
+                hints = mustHit.filter(m => m.fromR === r && m.fromC === c);
+            } else {
+                hints = getSimpleMoves(r, c);
+            }
+            selected = { r, c };
+            render();
+        }
+
+        function getSimpleMoves(r, c) {
+            const p = board[r][c];
+            const moves = [];
+            const dirs = p.king ? [[1,1],[1,-1],[-1,1],[-1,-1]] : (p.color === 'white' ? [[-1,1],[-1,-1]] : [[1,1],[1,-1]]);
+
+            for (let [dr, dc] of dirs) {
+                let nr = r + dr, nc = c + dc;
+                if (p.king) {
+                    while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && !board[nr][nc]) {
+                        moves.push({ fromR: r, fromC: c, toR: nr, toC: nc });
+                        nr += dr; nc += dc;
+                    }
+                } else {
+                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && !board[nr][nc]) {
+                        moves.push({ fromR: r, fromC: c, toR: nr, toC: nc });
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function getCaptures(r, c) {
+            const p = board[r][c];
+            const captures = [];
+            const dirs = [[1,1],[1,-1],[-1,1],[-1,-1]];
+
+            for (let [dr, dc] of dirs) {
+                if (p.king) {
+                    let nr = r + dr, nc = c + dc;
+                    let victim = null;
+                    while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                        if (board[nr][nc]) {
+                            if (board[nr][nc].color !== p.color && !victim) victim = { r: nr, c: nc };
+                            else break;
+                        } else if (victim) {
+                            captures.push({ fromR: r, fromC: c, toR: nr, toC: nc, victim });
+                        }
+                        nr += dr; nc += dc;
+                    }
+                } else {
+                    let vr = r + dr, vc = c + dc;
+                    let nr = r + dr * 2, nc = c + dc * 2;
+                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+                        if (board[vr][vc] && board[vr][vc].color !== p.color && !board[nr][nc]) {
+                            captures.push({ fromR: r, fromC: c, toR: nr, toC: nc, victim: { r: vr, c: vc } });
+                        }
+                    }
+                }
+            }
+            return captures;
+        }
+
+        function getMustHitMoves(color) {
+            let all = [];
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (board[r][c] && board[r][c].color === color) all.push(...getCaptures(r, c));
+                }
+            }
+            return all;
+        }
+
+        function executeMove(move) {
+            const p = board[move.fromR][move.fromC];
+            board[move.toR][move.toC] = p;
+            board[move.fromR][move.fromC] = null;
+
+            if (move.victim) {
+                board[move.victim.r][move.victim.c] = null;
+                const next = getCaptures(move.toR, move.toC);
+                if (next.length > 0) {
+                    multiJump = true;
+                    selected = { r: move.toR, c: move.toC };
+                    hints = next;
+                    if (mode === 'online') pushState();
+                    render();
+                    return;
+                }
+            }
+
+            if ((turn === 'white' && move.toR === 0) || (turn === 'black' && move.toR === 7)) p.king = true;
+
+            multiJump = false;
+            selected = null;
+            hints = [];
+            turn = turn === 'white' ? 'black' : 'white';
+            
+            if (mode === 'online') pushState();
+            render();
+            checkWin();
+
+            if (mode === 'ai' && turn === 'black') setTimeout(aiMove, 600);
+        }
+
+        /* --- ОНЛАЙН ЛОГИКА --- */
+        function showOnlineMenu() {
+            document.getElementById('online-menu').style.display = 'block';
+        }
+
+        function createRoom() {
+            roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
+            myColor = 'white';
+            mode = 'online';
+            pushState();
+            listenRoom();
+            document.getElementById('online-menu').style.display = 'none';
+        }
+
+        function joinRoom() {
+            roomId = document.getElementById('room-id-input').value.toUpperCase();
+            if (!roomId) return;
+            myColor = 'black';
+            mode = 'online';
+            listenRoom();
+            document.getElementById('online-menu').style.display = 'none';
+        }
+
+        function pushState() {
+            if (!roomId) return;
+            db.ref('rooms/' + roomId).set({
+                board: JSON.stringify(board),
+                turn: turn,
+                lastMove: Date.now()
+            });
+        }
+
+        function listenRoom() {
+            db.ref('rooms/' + roomId).on('value', (snap) => {
+                const data = snap.val();
+                if (data) {
+                    board = JSON.parse(data.board);
+                    turn = data.turn;
+                    render();
+                }
+            });
+        }
+
+        /* --- ИИ (MINIMAX) --- */
+        function aiMove() {
+            const moves = getMustHitMoves('black').length > 0 ? getMustHitMoves('black') : getAllMoves('black');
+            if (moves.length === 0) return;
+            
+            let bestMove = moves[Math.floor(Math.random() * moves.length)];
+            executeMove(bestMove);
+        }
+
+        function getAllMoves(color) {
+            let m = [];
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (board[r][c] && board[r][c].color === color) m.push(...getSimpleMoves(r, c));
+                }
+            }
+            return m;
+        }
+
+        function setMode(m) {
+            mode = m;
+            resetGame();
+        }
+
+        function resetGame() {
+            roomId = null;
+            multiJump = false;
+            selected = null;
+            hints = [];
+            turn = 'white';
+            initBoard();
+        }
+
+        function checkWin() {
+            const w = getAllMoves('white').concat(getMustHitMoves('white'));
+            const b = getAllMoves('black').concat(getMustHitMoves('black'));
+            if (w.length === 0) alert("Черные победили!");
+            else if (b.length === 0) alert("Белые победили!");
+        }
+
+        initBoard();
+    </script>
 </body>
 </html>
+
